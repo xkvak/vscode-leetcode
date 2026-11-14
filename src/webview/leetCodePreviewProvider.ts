@@ -33,7 +33,7 @@ class LeetCodePreviewProvider extends LeetCodeWebview {
         } else {
             return {
                 title: "Description",
-                viewColumn: ViewColumn.Two,
+                viewColumn: ViewColumn.One,
                 preserveFocus: true,
             };
         }

@@ -210,7 +210,7 @@ async function showProblemInternal(node: IProblem): Promise<void> {
         const promises: any[] = [
             vscode.window.showTextDocument(vscode.Uri.file(finalPath), {
                 preview: false,
-                viewColumn: vscode.ViewColumn.One,
+                viewColumn: vscode.ViewColumn.Two,
             }),
             promptHintMessage(
                 "hint.commentDescription",
