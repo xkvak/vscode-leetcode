@@ -1,9 +1,10 @@
 // Copyright (c) jdneo. All rights reserved.
 // Licensed under the MIT license.
 
-import { commands, ViewColumn } from "vscode";
+import { commands, ProgressLocation, ViewColumn, window } from "vscode";
 import { getLeetCodeEndpoint } from "../commands/plugin";
 import { Endpoint, IProblem } from "../shared";
+import { translateToKorean } from "../utils/translateUtils";
 import { ILeetCodeWebviewOption, LeetCodeWebview } from "./LeetCodeWebview";
 import { markdownEngine } from "./markdownEngine";
 
@@ -12,6 +13,8 @@ class LeetCodePreviewProvider extends LeetCodeWebview {
     private node: IProblem;
     private description: IDescription;
     private sideMode: boolean = false;
+    private translations: Map<string, string> = new Map();
+    private translated: boolean = false;
 
     public isSideMode(): boolean {
         return this.sideMode;
@@ -21,6 +24,7 @@ class LeetCodePreviewProvider extends LeetCodeWebview {
         this.description = this.parseDescription(descString, node);
         this.node = node;
         this.sideMode = isSideMode;
+        this.translated = false;
         this.showWebviewInternal();
     }
 
@@ -40,32 +44,39 @@ class LeetCodePreviewProvider extends LeetCodeWebview {
     }
 
     protected getWebviewContent(): string {
-        const button: { element: string; script: string; style: string } = {
-            element: `<button id="solve">Code Now</button>`,
-            script: `const button = document.getElementById('solve');
-                    button.onclick = () => vscode.postMessage({
-                        command: 'ShowProblem',
-                    });`,
+        const solve: string = this.sideMode ? "" : `<button id="solve">Code Now</button>`;
+        const actions: { element: string; script: string; style: string } = {
+            element: `<div id="actions"><button id="translate">${this.translated ? "English" : "한국어"}</button>${solve}</div>`,
+            script: `document.getElementById('translate').onclick = () => vscode.postMessage({ command: 'Translate' });
+                    const solve = document.getElementById('solve');
+                    if (solve) {
+                        solve.onclick = () => vscode.postMessage({ command: 'ShowProblem' });
+                    }`,
             style: `<style>
-                #solve {
+                #actions {
                     position: fixed;
                     bottom: 1rem;
                     right: 1rem;
-                    border: 0;
                     margin: 1rem 0;
+                    display: flex;
+                    gap: 0.5rem;
+                }
+                #actions button {
+                    border: 0;
                     padding: 0.2rem 1rem;
                     color: white;
                     background-color: var(--vscode-button-background);
                 }
-                #solve:hover {
+                #actions button:hover {
                     background-color: var(--vscode-button-hoverBackground);
                 }
-                #solve:active {
+                #actions button:active {
                     border: 0;
                 }
                 </style>`,
         };
-        const { title, url, category, difficulty, likes, dislikes, body } = this.description;
+        const { title, url, category, difficulty, likes, dislikes } = this.description;
+        const body: string = (this.translated && this.translations.get(this.node.id)) || this.description.body;
         const head: string = markdownEngine.render(`# [${title}](${url})`);
         const info: string = markdownEngine.render(
             [
@@ -93,7 +104,7 @@ class LeetCodePreviewProvider extends LeetCodeWebview {
             <head>
                 <meta http-equiv="Content-Security-Policy" content="default-src 'none'; img-src https:; script-src vscode-resource: 'unsafe-inline'; style-src vscode-resource: 'unsafe-inline';"/>
                 ${markdownEngine.getStyles()}
-                ${!this.sideMode ? button.style : ""}
+                ${actions.style}
                 <style>
                     code { white-space: pre-wrap; }
                 </style>
@@ -106,10 +117,10 @@ class LeetCodePreviewProvider extends LeetCodeWebview {
                 ${body}
                 <hr />
                 ${links}
-                ${!this.sideMode ? button.element : ""}
+                ${actions.element}
                 <script>
                     const vscode = acquireVsCodeApi();
-                    ${!this.sideMode ? button.script : ""}
+                    ${actions.script}
                 </script>
             </body>
             </html>
@@ -127,7 +138,32 @@ class LeetCodePreviewProvider extends LeetCodeWebview {
                 await commands.executeCommand("leetcode.showProblem", this.node);
                 break;
             }
+            case "Translate": {
+                await this.toggleTranslation();
+                break;
+            }
         }
+    }
+
+    private async toggleTranslation(): Promise<void> {
+        const node: IProblem = this.node;
+        if (!this.translated && !this.translations.has(node.id)) {
+            try {
+                const korean: string = await window.withProgress(
+                    { location: ProgressLocation.Notification, title: "Translating with Claude..." },
+                    () => translateToKorean(this.description.body),
+                );
+                this.translations.set(node.id, korean);
+            } catch (error) {
+                window.showErrorMessage(`Translation failed: ${error.message}`);
+                return;
+            }
+            if (this.node !== node) {
+                return; // another problem was opened while translating
+            }
+        }
+        this.translated = !this.translated;
+        this.showWebviewInternal();
     }
 
     // private async hideSideBar(): Promise<void> {
