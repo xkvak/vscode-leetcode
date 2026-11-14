@@ -3,6 +3,7 @@
 
 import { commands, ProgressLocation, ViewColumn, window } from "vscode";
 import { getLeetCodeEndpoint } from "../commands/plugin";
+import { queryHints } from "../request/query-hints";
 import { Endpoint, IProblem } from "../shared";
 import { translateToKorean } from "../utils/translateUtils";
 import { ILeetCodeWebviewOption, LeetCodeWebview } from "./LeetCodeWebview";
@@ -15,13 +16,21 @@ class LeetCodePreviewProvider extends LeetCodeWebview {
     private sideMode: boolean = false;
     private translations: Map<string, string> = new Map();
     private translated: boolean = false;
+    private latest: IProblem | undefined;
 
     public isSideMode(): boolean {
         return this.sideMode;
     }
 
-    public show(descString: string, node: IProblem, isSideMode: boolean = false): void {
-        this.description = this.parseDescription(descString, node);
+    public async show(descString: string, node: IProblem, isSideMode: boolean = false): Promise<void> {
+        this.latest = node;
+        const description: IDescription = this.parseDescription(descString, node);
+        const slug: string = description.url.split("/problems/")[1].split("/")[0];
+        description.hints = await queryHints(slug).catch((): string[] => []);
+        if (this.latest !== node) {
+            return; // another problem was opened while loading hints
+        }
+        this.description = description;
         this.node = node;
         this.sideMode = isSideMode;
         this.translated = false;
@@ -76,7 +85,7 @@ class LeetCodePreviewProvider extends LeetCodeWebview {
                 </style>`,
         };
         const { title, url, category, difficulty, likes, dislikes } = this.description;
-        const body: string = (this.translated && this.translations.get(this.node.id)) || this.description.body;
+        const body: string = (this.translated && this.translations.get(this.node.id)) || this.bodyWithHints();
         const head: string = markdownEngine.render(`# [${title}](${url})`);
         const info: string = markdownEngine.render(
             [
@@ -120,10 +129,10 @@ class LeetCodePreviewProvider extends LeetCodeWebview {
             <body>
                 ${head}
                 ${info}
-                ${tags}
-                ${companies}
                 ${body}
                 <hr />
+                ${tags}
+                ${companies}
                 ${links}
                 ${actions.element}
                 <script>
@@ -153,13 +162,21 @@ class LeetCodePreviewProvider extends LeetCodeWebview {
         }
     }
 
+    // Hints go below the description, each collapsed (no `open`), so they stay folded after every re-render.
+    private bodyWithHints(): string {
+        const hints: string = this.description.hints
+            .map((h: string, i: number) => `<details><summary><strong>Hint ${i + 1}</strong></summary>${h}</details>`)
+            .join("\n");
+        return `${this.description.body}\n\n${hints}`;
+    }
+
     private async toggleTranslation(): Promise<void> {
         const node: IProblem = this.node;
         if (!this.translated && !this.translations.has(node.id)) {
             try {
                 const korean: string = await window.withProgress(
                     { location: ProgressLocation.Notification, title: "Translating with Claude..." },
-                    () => translateToKorean(this.description.body),
+                    () => translateToKorean(this.bodyWithHints()),
                 );
                 this.translations.set(node.id, korean);
             } catch (error) {
@@ -209,6 +226,7 @@ class LeetCodePreviewProvider extends LeetCodeWebview {
             likes: likes.split(": ")[1].trim(),
             dislikes: dislikes.split(": ")[1].trim(),
             body: body.join("\n").replace(/<pre>[\r\n]*([^]+?)[\r\n]*<\/pre>/g, "<pre><code>$1</code></pre>"),
+            hints: [],
         };
     }
 
@@ -241,6 +259,7 @@ interface IDescription {
     likes: string;
     dislikes: string;
     body: string;
+    hints: string[];
 }
 
 interface IWebViewMessage {

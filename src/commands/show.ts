@@ -62,7 +62,7 @@ export async function previewProblem(input: IProblem | vscode.Uri, isSideMode: b
 
     const needTranslation: boolean = settingUtils.shouldUseEndpointTranslation();
     const descString: string = await leetCodeExecutor.getDescription(node.id, needTranslation);
-    leetCodePreviewProvider.show(descString, node, isSideMode);
+    await leetCodePreviewProvider.show(descString, node, isSideMode);
 }
 
 export async function pickOne(): Promise<void> {
