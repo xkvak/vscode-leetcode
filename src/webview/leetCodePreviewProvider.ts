@@ -107,6 +107,14 @@ class LeetCodePreviewProvider extends LeetCodeWebview {
                 ${actions.style}
                 <style>
                     code { white-space: pre-wrap; }
+                    /* LeetCode's newer example markup */
+                    .example-block {
+                        margin: 0.5rem 0 1rem;
+                        padding: 0.25rem 1rem;
+                        border-left: 2px solid var(--vscode-textBlockQuote-border);
+                    }
+                    .example-block p { margin: 0.3rem 0; }
+                    .example-io { font-family: var(--vscode-editor-font-family); }
                 </style>
             </head>
             <body>
