@@ -102,7 +102,8 @@ class LeetCodeExecutor implements Disposable {
     }
 
     public async showProblem(problemNode: IProblem, language: string, filePath: string, showDescriptionInComment: boolean = false, needTranslation: boolean): Promise<void> {
-        const templateType: string = showDescriptionInComment ? "-cx" : "-c";
+        // python3: -cx also carries the first example; formatPython3Template drops the description comment
+        const templateType: string = showDescriptionInComment || language === "python3" ? "-cx" : "-c";
         const cmd: string[] = [await this.getLeetCodeBinaryPath(), "show", problemNode.id, templateType, "-l", language];
 
         if (!needTranslation) {
