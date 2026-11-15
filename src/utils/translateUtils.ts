@@ -2,7 +2,8 @@ import * as cp from "child_process";
 import * as os from "os";
 
 const SYSTEM_PROMPT: string = "Translate the HTML given by the user from English to Korean. "
-    + "Keep every HTML tag and attribute, everything inside <code> and <pre>, variable names, numbers and formulas exactly as they are. "
+    + "Keep every HTML tag and attribute, code, variable names, values, numbers and formulas exactly as they are. "
+    + "Example blocks inside <pre> also contain prose: translate their labels and Explanation sentences but keep the Input and Output values unchanged. "
     + "Output only the translated HTML, with no explanation and no code fences.";
 
 // Claude Code headless on the user's Claude login, with no tools, MCP servers or settings files.
