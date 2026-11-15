@@ -5,6 +5,7 @@ import * as vscode from "vscode";
 
 const CookieKey = "leetcode-cookie";
 const UserStatusKey = "leetcode-user-status";
+const TimerMinutesKey = "leetcode-timer-minutes";
 
 export type UserDataType = {
     isSignedIn: boolean;
@@ -40,6 +41,14 @@ class GlobalState {
 
     public getUserStatus(): UserDataType | undefined {
         return this._userStatus ?? this._state.get(UserStatusKey);
+    }
+
+    public getTimerMinutes(): number {
+        return this._state.get(TimerMinutesKey, 30);
+    }
+
+    public setTimerMinutes(minutes: number): any {
+        return this._state.update(TimerMinutesKey, minutes);
     }
 
     public removeCookie(): void {
