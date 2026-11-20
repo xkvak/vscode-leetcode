@@ -56,7 +56,8 @@ class LeetCodeSubmissionProvider extends LeetCodeWebview {
                 <style>
                     h2.ok { color: #2cbb5d; }
                     .vscode-light h2.ok { color: #1a9a4b; }
-                    h2.fail { color: #ef4743; }
+                    h2.fail { color: #f8615c; }
+                    .vscode-light h2.fail { color: #ef4743; }
                     h2 .passed { margin-left: 8px; font-size: 0.6em; font-weight: normal; color: var(--vscode-descriptionForeground); }
                 </style>
             </head>
