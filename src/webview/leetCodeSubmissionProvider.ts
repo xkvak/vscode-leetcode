@@ -10,9 +10,13 @@ class LeetCodeSubmissionProvider extends LeetCodeWebview {
 
     protected readonly viewType: string = "leetcode.submission";
     private result: IResult;
+    private accepted: boolean;
 
     public show(resultString: string): void {
         this.result = this.parseResult(resultString);
+        // The CLI prefixes the first line with ✔/√/v on success and ✘/×/x on failure
+        const icon: RegExpMatchArray | null = resultString.match(/^  ([√×✔✘vx]) /m);
+        this.accepted = icon !== null && "√✔v".includes(icon[1]);
         this.showWebviewInternal();
         this.showKeybindingsHint();
     }
@@ -26,8 +30,9 @@ class LeetCodeSubmissionProvider extends LeetCodeWebview {
 
     protected getWebviewContent(): string {
         const styles: string = markdownEngine.getStyles();
-        const title: string = `## ${this.result.messages[0]}`;
-        const messages: string[] = this.result.messages.slice(1).map((m: string) => `* ${m}`);
+        const [state, passed = "", ...rest] = this.result.messages;
+        const title: string = `<h2 class="${this.accepted ? "ok" : "fail"}">${state}<span class="passed">${passed}</span></h2>`;
+        const messages: string[] = rest.map((m: string) => `* ${m}`);
         const sections: string[] = Object.keys(this.result)
             .filter((key: string) => key !== "messages")
             .map((key: string) => [
@@ -37,7 +42,6 @@ class LeetCodeSubmissionProvider extends LeetCodeWebview {
                 "```",
             ].join("\n"));
         const body: string = markdownEngine.render([
-            title,
             ...messages,
             ...sections,
         ].join("\n"));
@@ -45,12 +49,19 @@ class LeetCodeSubmissionProvider extends LeetCodeWebview {
             <!DOCTYPE html>
             <html>
             <head>
-                <meta http-equiv="Content-Security-Policy" content="default-src 'none'; img-src https:; script-src vscode-resource:; style-src vscode-resource:;"/>
+                <meta http-equiv="Content-Security-Policy" content="default-src 'none'; img-src https:; script-src vscode-resource:; style-src vscode-resource: 'unsafe-inline';"/>
                 <meta charset="UTF-8">
                 <meta name="viewport" content="width=device-width, initial-scale=1.0">
                 ${styles}
+                <style>
+                    h2.ok { color: #2cbb5d; }
+                    .vscode-light h2.ok { color: #1a9a4b; }
+                    h2.fail { color: #ef4743; }
+                    h2 .passed { margin-left: 8px; font-size: 0.6em; font-weight: normal; color: var(--vscode-descriptionForeground); }
+                </style>
             </head>
             <body class="vscode-body 'scrollBeyondLastLine' 'wordWrap' 'showEditorSelection'" style="tab-size:4">
+                ${title}
                 ${body}
             </body>
             </html>
